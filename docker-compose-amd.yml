@@ -1,0 +1,27 @@
+
+
+services:
+  open-notebook-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: open-notebook-frontend:latest
+    container_name: open_notebook_ui
+    ports:
+      - "8501:8501"
+    environment:
+      # Apunta a la instancia de Ollama ejecutándose nativamente en Windows
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - LLM_MODEL=qwen2.5:1.5b
+      - EMBEDDING_MODEL=nomic-embed-text
+      - CHUNK_SIZE=512
+      - CHUNK_OVERLAP=64
+    volumes:
+      - vdb_storage:/app/data
+    # Habilita la resolución de host.docker.internal hacia la máquina anfitriona (Windows)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+volumes:
+  vdb_storage:

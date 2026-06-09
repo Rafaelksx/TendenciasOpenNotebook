@@ -1,0 +1,45 @@
+
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: open_notebook_ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_storage:/root/.ollama
+    # Permite usar la GPU Nvidia si está disponible y configurada en Docker.
+    # Si no hay GPU Nvidia, Docker Compose fallará o se ejecutará en CPU según la versión de Docker.
+    # En caso de incompatibilidad de GPU en Docker, se puede comentar esta sección deploy.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  open-notebook-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: open-notebook-frontend:latest
+    container_name: open_notebook_ui
+    ports:
+      - "8501:8501"
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - LLM_MODEL=qwen2.5:1.5b
+      - EMBEDDING_MODEL=nomic-embed-text
+      - CHUNK_SIZE=512
+      - CHUNK_OVERLAP=64
+    volumes:
+      - vdb_storage:/app/data
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+volumes:
+  ollama_storage:
+  vdb_storage:
