@@ -19,6 +19,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar el código de la aplicación
 COPY app.py .
+COPY src/ ./src/
 
 # Crear el directorio de datos persistente para la base de datos vectorial
 RUN mkdir -p /app/data
