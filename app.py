@@ -26,6 +26,62 @@ DATA_DIR = os.getenv("DATA_DIR", "./data")
 # Crear directorio de datos si no existe
 os.makedirs(DATA_DIR, exist_ok=True)
 
+# Crear directorio para almacenar el historial de chat
+HISTORY_DIR = os.path.join(DATA_DIR, "history")
+os.makedirs(HISTORY_DIR, exist_ok=True)
+
+def get_chat_sessions():
+    sessions = []
+    if os.path.exists(HISTORY_DIR):
+        for f in os.listdir(HISTORY_DIR):
+            if f.endswith(".json"):
+                session_id = f[:-5]
+                filepath = os.path.join(HISTORY_DIR, f)
+                try:
+                    with open(filepath, "r", encoding="utf-8") as file:
+                        data = json.load(file)
+                        display_name = "Conversación vacía"
+                        for msg in data:
+                            if msg.get("role") == "user":
+                                display_name = msg.get("content")[:30]
+                                if len(msg.get("content")) > 30:
+                                    display_name += "..."
+                                break
+                        mtime = os.path.getmtime(filepath)
+                        sessions.append((session_id, display_name, mtime))
+                except Exception:
+                    pass
+    sessions.sort(key=lambda x: x[2], reverse=True)
+    return [(s[0], s[1]) for s in sessions]
+
+def load_chat_session(session_id):
+    filepath = os.path.join(HISTORY_DIR, f"{session_id}.json")
+    if os.path.exists(filepath):
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return []
+
+def save_chat_session(session_id, messages):
+    if not messages:
+        return
+    filepath = os.path.join(HISTORY_DIR, f"{session_id}.json")
+    try:
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(messages, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        st.error(f"Error guardando sesión de chat: {e}")
+
+def delete_chat_session(session_id):
+    filepath = os.path.join(HISTORY_DIR, f"{session_id}.json")
+    if os.path.exists(filepath):
+        try:
+            os.remove(filepath)
+        except Exception:
+            pass
+
 # --- SVG ICONS CONSTANTS ---
 SVG_LOGO = """
 <svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="url(#brand-grad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 12px;">
@@ -253,7 +309,7 @@ def get_ollama_embedding(text, prefix):
     full_text = f"{prefix}{text}"
     url = f"{OLLAMA_BASE_URL}/api/embeddings"
     payload = {
-        "model": EMBEDDING_MODEL,
+        "model": st.session_state.get("embedding_model", EMBEDDING_MODEL),
         "prompt": full_text
     }
     try:
@@ -278,6 +334,60 @@ def get_ollama_embedding(text, prefix):
 
 # --- PROCESAMIENTO Y FRAGMENTACIÓN DE DOCUMENTOS ---
 
+def recursive_split_text(text, chunk_size, chunk_overlap, separators=["\n\n", "\n", ". ", " ", ""]):
+    if len(text) <= chunk_size:
+        return [text]
+    
+    separator = separators[-1]
+    for sep in separators:
+        if sep in text:
+            separator = sep
+            break
+            
+    splits = text.split(separator)
+    chunks = []
+    current_chunk = ""
+    
+    for split in splits:
+        if len(current_chunk) + len(split) + len(separator) > chunk_size:
+            if current_chunk:
+                chunks.append(current_chunk.strip())
+            if chunk_overlap > 0 and len(current_chunk) > chunk_overlap:
+                current_chunk = current_chunk[-chunk_overlap:] + separator + split
+            else:
+                current_chunk = split
+        else:
+            if current_chunk:
+                current_chunk += separator + split
+            else:
+                current_chunk = split
+                
+    if current_chunk:
+        chunks.append(current_chunk.strip())
+        
+    final_chunks = []
+    next_separators = [s for s in separators if s != separator]
+    if not next_separators:
+        next_separators = [""]
+        
+    for chunk in chunks:
+        if len(chunk) > chunk_size:
+            final_chunks.extend(recursive_split_text(chunk, chunk_size, chunk_overlap, next_separators))
+        else:
+            final_chunks.append(chunk)
+            
+    return [c for c in final_chunks if len(c.strip()) > 10]
+
+def extract_text_from_docx(file_bytes):
+    from io import BytesIO
+    from docx import Document
+    doc = Document(BytesIO(file_bytes))
+    full_text = []
+    for para in doc.paragraphs:
+        if para.text.strip():
+            full_text.append(para.text.strip())
+    return [{"text": "\n\n".join(full_text), "page": 1}]
+
 def extract_text_from_pdf(file_bytes):
     from io import BytesIO
     pdf_reader = PdfReader(BytesIO(file_bytes))
@@ -294,22 +404,20 @@ def chunk_pages(pages_content, chunk_size=CHUNK_SIZE, overlap=CHUNK_OVERLAP):
         text = item["text"]
         page_num = item["page"]
         
-        start = 0
-        while start < len(text):
-            end = start + chunk_size
-            chunk_text = text[start:end].strip()
-            if len(chunk_text) > 10:
-                chunks.append({
-                    "text": chunk_text,
-                    "page": page_num
-                })
-            start += (chunk_size - overlap)
+        split_chunks = recursive_split_text(text, chunk_size, overlap)
+        for chunk_text in split_chunks:
+            chunks.append({
+                "text": chunk_text,
+                "page": page_num
+            })
     return chunks
 
 def ingest_document(filename, file_bytes, file_type):
     with st.spinner(f"Procesando e indexando '{filename}'..."):
         if file_type == "application/pdf":
             pages = extract_text_from_pdf(file_bytes)
+        elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or filename.endswith(".docx"):
+            pages = extract_text_from_docx(file_bytes)
         else:
             text = file_bytes.decode("utf-8", errors="ignore")
             pages = [{"text": text, "page": 1}]
@@ -359,6 +467,20 @@ def ingest_document(filename, file_bytes, file_type):
         return True
 
 
+# --- INICIALIZACIÓN DE ESTADO ---
+if "llm_model" not in st.session_state:
+    st.session_state.llm_model = LLM_MODEL
+
+if "embedding_model" not in st.session_state:
+    st.session_state.embedding_model = EMBEDDING_MODEL
+
+if "current_session_id" not in st.session_state:
+    import time
+    st.session_state.current_session_id = f"session_{int(time.time())}"
+
+if "messages" not in st.session_state:
+    st.session_state.messages = load_chat_session(st.session_state.current_session_id)
+
 # --- ESTADO DE CONEXIONES Y PANEL LATERAL ---
 
 st.sidebar.markdown(f"<h2 style='text-align: left; color: #f8fafc; font-weight: 600; font-size: 1.4rem;'>{SVG_GEAR}Panel de Control</h2>", unsafe_allow_html=True)
@@ -375,23 +497,55 @@ if ollama_connected:
     )
     st.sidebar.markdown(f"**Dirección:** `{OLLAMA_BASE_URL}`")
     
-    llm_ok = LLM_MODEL in installed_models or any(LLM_MODEL in m for m in installed_models)
-    emb_ok = EMBEDDING_MODEL in installed_models or any(EMBEDDING_MODEL in m for m in installed_models)
+    st.sidebar.markdown("<p style='font-size:0.9rem; font-weight:600; color:#94a3b8; margin-bottom:8px;'>Modelos Seleccionados</p>", unsafe_allow_html=True)
     
-    st.sidebar.markdown("<p style='font-size:0.9rem; font-weight:600; color:#94a3b8; margin-bottom:8px;'>Modelos Requeridos</p>", unsafe_allow_html=True)
-    if llm_ok:
-        st.sidebar.success(f"LLM: {LLM_MODEL}")
-    else:
-        st.sidebar.warning(f"LLM no detectado: {LLM_MODEL}")
-        st.sidebar.caption("Ejecuta en terminal para descargar:")
-        st.sidebar.code(f"ollama pull {LLM_MODEL}")
+    # Selector de LLM
+    llm_options = installed_models if installed_models else [LLM_MODEL]
+    default_llm_idx = 0
+    if st.session_state.llm_model in llm_options:
+        default_llm_idx = llm_options.index(st.session_state.llm_model)
+    elif LLM_MODEL in llm_options:
+        default_llm_idx = llm_options.index(LLM_MODEL)
         
-    if emb_ok:
-        st.sidebar.success(f"Embeddings: {EMBEDDING_MODEL}")
-    else:
-        st.sidebar.warning(f"Embeddings no detectado: {EMBEDDING_MODEL}")
-        st.sidebar.caption("Ejecuta en terminal para descargar:")
-        st.sidebar.code(f"ollama pull {EMBEDDING_MODEL}")
+    st.session_state.llm_model = st.sidebar.selectbox(
+        "Modelo de Lenguaje (LLM):",
+        options=llm_options,
+        index=default_llm_idx
+    )
+    
+    # Selector de Embeddings
+    emb_options = installed_models if installed_models else [EMBEDDING_MODEL]
+    default_emb_idx = 0
+    if st.session_state.embedding_model in emb_options:
+        default_emb_idx = emb_options.index(st.session_state.embedding_model)
+    elif EMBEDDING_MODEL in emb_options:
+        default_emb_idx = emb_options.index(EMBEDDING_MODEL)
+        
+    st.session_state.embedding_model = st.sidebar.selectbox(
+        "Modelo de Embeddings:",
+        options=emb_options,
+        index=default_emb_idx
+    )
+    
+    # Descargar nuevo modelo
+    st.sidebar.markdown("<p style='font-size:0.85rem; font-weight:600; color:#94a3b8; margin-top:10px; margin-bottom:5px;'>Descargar Nuevo Modelo</p>", unsafe_allow_html=True)
+    model_to_pull = st.sidebar.text_input("Nombre del modelo (ej: llama3, gemma2):", key="pull_model_input_sidebar")
+    if st.sidebar.button("Descargar Modelo", use_container_width=True):
+        if model_to_pull:
+            with st.sidebar.spinner(f"Descargando '{model_to_pull}'..."):
+                try:
+                    pull_url = f"{OLLAMA_BASE_URL}/api/pull"
+                    payload = {"name": model_to_pull.strip(), "stream": False}
+                    response = requests.post(pull_url, json=payload, timeout=600)
+                    if response.status_code == 200:
+                        st.sidebar.success(f"¡Modelo '{model_to_pull}' descargado!")
+                        st.rerun()
+                    else:
+                        st.sidebar.error(f"Error al descargar: {response.text}")
+                except Exception as e:
+                    st.sidebar.error(f"Error de conexión: {e}")
+        else:
+            st.sidebar.warning("Introduce un nombre de modelo.")
 else:
     st.sidebar.markdown(
         '<div class="status-container"><span class="status-dot inactive"></span>Ollama Desconectado</div>',
@@ -402,6 +556,67 @@ else:
         f"Asegúrate de que Ollama está activo en {OLLAMA_BASE_URL} y los modelos estén descargados."
     )
     if st.sidebar.button("Reintentar Conexión"):
+        st.rerun()
+
+# --- AJUSTES RAG ---
+st.sidebar.markdown(f"<p style='font-size:0.9rem; font-weight:600; color:#94a3b8; margin-bottom:12px;'>Configuración del RAG</p>", unsafe_allow_html=True)
+rag_k = st.sidebar.slider(
+    "Número de fragmentos (k):",
+    min_value=1,
+    max_value=10,
+    value=4,
+    step=1,
+    help="Número de fragmentos de texto recuperados de la base de datos para responder a la pregunta."
+)
+
+similarity_threshold = st.sidebar.slider(
+    "Umbral de Similitud Mínimo:",
+    min_value=0.0,
+    max_value=1.0,
+    value=0.2,
+    step=0.05,
+    help="Umbral de similitud (1 - distancia coseno) mínimo requerido para considerar un fragmento relevante."
+)
+
+# --- HISTORIAL DE CONVERSACIONES ---
+st.sidebar.markdown("---")
+st.sidebar.markdown(f"<p style='font-size:0.9rem; font-weight:600; color:#94a3b8; margin-bottom:12px;'>Historial de Chats</p>", unsafe_allow_html=True)
+
+# Botón para crear una conversación nueva
+if st.sidebar.button("📝 Nueva Conversación", use_container_width=True):
+    import time
+    new_sess_id = f"session_{int(time.time())}"
+    st.session_state.current_session_id = new_sess_id
+    st.session_state.messages = []
+    st.rerun()
+
+sessions = get_chat_sessions()
+if sessions:
+    # Mapear ids a nombres para el dropdown
+    session_options = {s[0]: s[1] for s in sessions}
+    if st.session_state.current_session_id not in session_options:
+        session_options[st.session_state.current_session_id] = "Conversación actual"
+        
+    selected_sess = st.sidebar.selectbox(
+        "Seleccionar chat:",
+        options=list(session_options.keys()),
+        format_func=lambda x: session_options[x],
+        index=list(session_options.keys()).index(st.session_state.current_session_id) if st.session_state.current_session_id in session_options else 0,
+        key="session_select_box"
+    )
+    
+    if selected_sess != st.session_state.current_session_id:
+        st.session_state.current_session_id = selected_sess
+        st.session_state.messages = load_chat_session(selected_sess)
+        st.rerun()
+        
+    if st.sidebar.button("🗑️ Eliminar Chat Actual", use_container_width=True):
+        delete_chat_session(st.session_state.current_session_id)
+        import time
+        new_sess_id = f"session_{int(time.time())}"
+        st.session_state.current_session_id = new_sess_id
+        st.session_state.messages = []
+        st.success("Conversación eliminada.")
         st.rerun()
 
 st.sidebar.markdown("---")
@@ -444,8 +659,8 @@ with tab_upload:
     st.write("Sube tus libros, artículos o apuntes para procesar, fragmentar y almacenar de forma segura y local.")
     
     uploaded_files = st.file_uploader(
-        "Elige archivos PDF o TXT para añadir a la base de conocimiento:",
-        type=["pdf", "txt", "md"],
+        "Elige archivos PDF, Word o TXT para añadir a la base de conocimiento:",
+        type=["pdf", "txt", "md", "docx"],
         accept_multiple_files=True
     )
     
@@ -560,6 +775,7 @@ with tab_chat:
         
     if user_query:
         st.session_state.messages.append({"role": "user", "content": user_query})
+        save_chat_session(st.session_state.current_session_id, st.session_state.messages)
         with st.chat_message("user"):
             st.markdown(user_query)
             
@@ -572,7 +788,7 @@ with tab_chat:
                 if query_emb:
                     results = collection.query(
                         query_embeddings=[query_emb],
-                        n_results=min(4, total_indexed_chunks)
+                        n_results=min(rag_k, total_indexed_chunks)
                     )
                     
                     if results and results["documents"] and results["documents"][0]:
@@ -583,15 +799,16 @@ with tab_chat:
                         context_parts = []
                         for idx, (doc_text, meta, dist) in enumerate(zip(docs, metas, distances)):
                             similarity_score = 1.0 - dist
-                            retrieved_chunks_for_message.append({
-                                "text": doc_text,
-                                "source": meta["source"],
-                                "page": meta["page"],
-                                "score": similarity_score
-                            })
-                            context_parts.append(
-                                f"[Fuente: {meta['source']}, Pág: {meta['page']}]\n{doc_text}"
-                            )
+                            if similarity_score >= similarity_threshold:
+                                retrieved_chunks_for_message.append({
+                                    "text": doc_text,
+                                    "source": meta["source"],
+                                    "page": meta["page"],
+                                    "score": similarity_score
+                                })
+                                context_parts.append(
+                                    f"[Fuente: {meta['source']}, Pág: {meta['page']}]\n{doc_text}"
+                                )
                         context = "\n\n---\n\n".join(context_parts)
         
         with st.chat_message("assistant"):
@@ -615,7 +832,7 @@ with tab_chat:
             else:
                 url = f"{OLLAMA_BASE_URL}/api/chat"
                 payload = {
-                    "model": LLM_MODEL,
+                    "model": st.session_state.get("llm_model", LLM_MODEL),
                     "messages": [
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
@@ -644,5 +861,6 @@ with tab_chat:
                 "content": full_response,
                 "retrieved_chunks": retrieved_chunks_for_message
             })
+            save_chat_session(st.session_state.current_session_id, st.session_state.messages)
             
             st.rerun()
