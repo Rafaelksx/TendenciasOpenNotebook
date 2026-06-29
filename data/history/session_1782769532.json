@@ -1,0 +1,11 @@
+[
+  {
+    "role": "user",
+    "content": "hola"
+  },
+  {
+    "role": "assistant",
+    "content": "Hola! ¿Cómo puedo ayudarte hoy?",
+    "retrieved_chunks": []
+  }
+]
