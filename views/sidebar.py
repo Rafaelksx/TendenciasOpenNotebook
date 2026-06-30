@@ -109,7 +109,9 @@ def render():
                 pass
                 
             delete_chat_session(usuario_id, st.session_state.current_session_id)
-            st.session_state.current_session_id = f"session_{int(time.time())}"
+            new_sess = f"session_{int(time.time())}"
+            st.session_state.current_session_id = new_sess
+            st.session_state.session_select_box = new_sess
             st.session_state.messages = []
             st.success("Conversación eliminada.")
             st.rerun()
