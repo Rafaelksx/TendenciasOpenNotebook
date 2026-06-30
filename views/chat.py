@@ -1,13 +1,14 @@
 import streamlit as st
 import requests
 import json
-from src.config import OLLAMA_BASE_URL, LLM_MODEL, SVG_STUDENT, SVG_TEACHER
+from src.config import OLLAMA_BASE_URL, LLM_MODEL, SVG_STUDENT, SVG_TEACHER, LLM_TEMPERATURE, LLM_NUM_CTX
 from src.db import get_vector_collection
 from src.models import test_ollama_connection, get_ollama_embedding
 from src.history import save_chat_session
 
 def render():
-    collection_name = f"coll_{st.session_state.current_session_id}"
+    usuario_id = st.session_state['usuario']['id']
+    collection_name = f"coll_{usuario_id}_{st.session_state.current_session_id}"
     collection = get_vector_collection(collection_name)
     
     all_metadata = collection.get()
@@ -43,14 +44,14 @@ def render():
                 with st.expander("Ver fuentes de contexto utilizadas para esta respuesta"):
                     for idx, chunk in enumerate(message["retrieved_chunks"]):
                         st.markdown(f"""
-                        <div class="chunk-box">
-                        <div class="chunk-header">
-                        <span>{chunk['source']} (Pág. {chunk['page']})</span>
-                        <span>Similitud: {chunk['score']:.4f}</span>
-                        </div>
-                        <p style='margin:0; font-size:0.85rem; color:#cbd5e1;'>{chunk['text']}</p>
-                        </div>
-                        """, unsafe_allow_html=True)
+<div class="chunk-box">
+<div class="chunk-header">
+<span>{chunk['source']} (Pág. {chunk['page']})</span>
+<span>Similitud: {chunk['score']:.4f}</span>
+</div>
+<p style='margin:0; font-size:0.85rem; color:#cbd5e1;'>{chunk['text']}</p>
+</div>
+""", unsafe_allow_html=True)
 
     user_query = st.chat_input("Realiza una pregunta sobre tus documentos indexados...")
     
@@ -60,7 +61,7 @@ def render():
         
     if user_query:
         st.session_state.messages.append({"role": "user", "content": user_query})
-        save_chat_session(st.session_state.current_session_id, st.session_state.messages)
+        save_chat_session(usuario_id, st.session_state.current_session_id, st.session_state.messages)
         with st.chat_message("user"):
             st.markdown(user_query)
             
@@ -123,6 +124,10 @@ def render():
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
                     ],
+                    "options": {
+                        "temperature": LLM_TEMPERATURE,
+                        "num_ctx": LLM_NUM_CTX
+                    },
                     "stream": True
                 }
                 
@@ -147,5 +152,5 @@ def render():
                 "content": full_response,
                 "retrieved_chunks": retrieved_chunks_for_message
             })
-            save_chat_session(st.session_state.current_session_id, st.session_state.messages)
+            save_chat_session(usuario_id, st.session_state.current_session_id, st.session_state.messages)
             st.rerun()

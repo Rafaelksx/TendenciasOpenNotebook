@@ -7,6 +7,7 @@ from src.db import get_chroma_client
 # Importamos las funciones que ya creaste en la carpeta src
 from src.auth_db import get_db, init_db
 from src.auth import registrar_usuario, autenticar_usuario
+from src.db_models import Usuario
 
 # Inicializamos la API
 app = FastAPI(title="Open Notebook API Backend")
@@ -66,4 +67,16 @@ def login(user: UsuarioLogin, db: Session = Depends(get_db)):
             "nombre": usuario_valido.nombre,
             "correo": usuario_valido.correo
         }
+    }
+
+@app.get("/usuario/{usuario_id}")
+def obtener_usuario(usuario_id: int, db: Session = Depends(get_db)):
+    """Busca un usuario por su ID y devuelve sus datos básicos (nombre, correo)"""
+    usuario = db.query(Usuario).filter(Usuario.id == usuario_id).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return {
+        "id": usuario.id,
+        "nombre": usuario.nombre,
+        "correo": usuario.correo
     }

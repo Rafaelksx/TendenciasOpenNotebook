@@ -3,7 +3,8 @@ from src.db import get_vector_collection
 from src.config import SVG_FILE
 
 def render():
-    collection_name = f"coll_{st.session_state.current_session_id}"
+    usuario_id = st.session_state['usuario']['id']
+    collection_name = f"coll_{usuario_id}_{st.session_state.current_session_id}"
     collection = get_vector_collection(collection_name)
     
     all_metadata = collection.get()
@@ -18,14 +19,14 @@ def render():
                 col_doc, col_btn = st.columns([0.88, 0.12])
                 with col_doc:
                     st.markdown(f"""
-                    <div class="card" style="display: flex; align-items: center; gap: 12px; padding: 16px 24px; margin-bottom: 5px;">
-                    {SVG_FILE}
-                    <div style="flex-grow: 1;">
-                    <h4 style="margin: 0; color: #f8fafc; font-size: 1.1rem;">{doc_name}</h4>
-                    <p style="color:#94a3b8; font-size: 0.8rem; margin: 2px 0 0 0;">Origen local indexado en volumen persistente</p>
-                    </div>
-                    </div>
-                    """, unsafe_allow_html=True)
+<div class="card" style="display: flex; align-items: center; gap: 12px; padding: 16px 24px; margin-bottom: 5px;">
+{SVG_FILE}
+<div style="flex-grow: 1;">
+<h4 style="margin: 0; color: #f8fafc; font-size: 1.1rem;">{doc_name}</h4>
+<p style="color:#94a3b8; font-size: 0.8rem; margin: 2px 0 0 0;">Origen local indexado en volumen persistente</p>
+</div>
+</div>
+""", unsafe_allow_html=True)
                 with col_btn:
                     st.write("") 
                     st.write("")

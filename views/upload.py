@@ -3,7 +3,8 @@ from src.db import get_vector_collection
 from src.parser import ingest_document
 
 def render():
-    collection_name = f"coll_{st.session_state.current_session_id}"
+    usuario_id = st.session_state['usuario']['id']
+    collection_name = f"coll_{usuario_id}_{st.session_state.current_session_id}"
     collection = get_vector_collection(collection_name)
 
     st.markdown("### Ingesta de Literatura Científica y Material de Estudio")

@@ -2,12 +2,13 @@ import os
 import json
 from src.config import HISTORY_DIR
 
-def get_chat_sessions():
+def get_chat_sessions(usuario_id):
     sessions = []
     if os.path.exists(HISTORY_DIR):
+        prefix = f"{usuario_id}_"
         for f in os.listdir(HISTORY_DIR):
-            if f.endswith(".json"):
-                session_id = f[:-5]
+            if f.startswith(prefix) and f.endswith(".json"):
+                session_id = f[len(prefix):-5]
                 filepath = os.path.join(HISTORY_DIR, f)
                 try:
                     with open(filepath, "r", encoding="utf-8") as file:
@@ -26,8 +27,8 @@ def get_chat_sessions():
     sessions.sort(key=lambda x: x[2], reverse=True)
     return [(s[0], s[1]) for s in sessions]
 
-def load_chat_session(session_id):
-    filepath = os.path.join(HISTORY_DIR, f"{session_id}.json")
+def load_chat_session(usuario_id, session_id):
+    filepath = os.path.join(HISTORY_DIR, f"{usuario_id}_{session_id}.json")
     if os.path.exists(filepath):
         try:
             with open(filepath, "r", encoding="utf-8") as f:
@@ -36,10 +37,10 @@ def load_chat_session(session_id):
             pass
     return []
 
-def save_chat_session(session_id, messages):
+def save_chat_session(usuario_id, session_id, messages):
     if not messages:
         return
-    filepath = os.path.join(HISTORY_DIR, f"{session_id}.json")
+    filepath = os.path.join(HISTORY_DIR, f"{usuario_id}_{session_id}.json")
     try:
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(messages, f, ensure_ascii=False, indent=2)
@@ -47,8 +48,8 @@ def save_chat_session(session_id, messages):
         import streamlit as st
         st.error(f"Error guardando sesión de chat: {e}")
 
-def delete_chat_session(session_id):
-    filepath = os.path.join(HISTORY_DIR, f"{session_id}.json")
+def delete_chat_session(usuario_id, session_id):
+    filepath = os.path.join(HISTORY_DIR, f"{usuario_id}_{session_id}.json")
     if os.path.exists(filepath):
         try:
             os.remove(filepath)

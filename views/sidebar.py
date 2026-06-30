@@ -7,7 +7,8 @@ from src.models import test_ollama_connection, get_installed_models
 from src.history import get_chat_sessions, load_chat_session, delete_chat_session
 
 def render():
-    collection_name = f"coll_{st.session_state.current_session_id}"
+    usuario_id = st.session_state['usuario']['id']
+    collection_name = f"coll_{usuario_id}_{st.session_state.current_session_id}"
     collection = get_vector_collection(collection_name)
 
     st.sidebar.markdown(f"<h2 style='text-align: left; color: #f8fafc; font-weight: 600; font-size: 1.4rem;'>{SVG_GEAR}Panel de Control</h2>", unsafe_allow_html=True)
@@ -15,6 +16,7 @@ def render():
     if st.sidebar.button("🚪 Cerrar Sesión", use_container_width=True):
         st.session_state['usuario'] = None
         st.session_state.messages = []
+        st.query_params.clear()
         st.rerun()
 # Botón de Cerrar Sesión justo al final del sidebar
     st.sidebar.markdown("---")
@@ -78,7 +80,7 @@ def render():
         st.session_state.messages = []
         st.rerun()
 
-    sessions = get_chat_sessions()
+    sessions = get_chat_sessions(usuario_id)
     if sessions:
         session_options = {s[0]: s[1] for s in sessions}
         if st.session_state.current_session_id not in session_options:
@@ -94,7 +96,7 @@ def render():
         
         if selected_sess != st.session_state.current_session_id:
             st.session_state.current_session_id = selected_sess
-            st.session_state.messages = load_chat_session(selected_sess)
+            st.session_state.messages = load_chat_session(usuario_id, selected_sess)
             st.rerun()
             
         if st.sidebar.button("🗑️ Eliminar Chat Actual", use_container_width=True):
@@ -104,7 +106,7 @@ def render():
             except Exception:
                 pass
                 
-            delete_chat_session(st.session_state.current_session_id)
+            delete_chat_session(usuario_id, st.session_state.current_session_id)
             st.session_state.current_session_id = f"session_{int(time.time())}"
             st.session_state.messages = []
             st.success("Conversación eliminada.")

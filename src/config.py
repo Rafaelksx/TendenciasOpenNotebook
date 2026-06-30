@@ -6,6 +6,8 @@ LLM_MODEL = os.getenv("LLM_MODEL", "qwen2.5:1.5b")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "512"))
 CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "64"))
+LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.1"))  # 0.1 para que sea más preciso y menos creativo
+LLM_NUM_CTX = int(os.getenv("LLM_NUM_CTX", "8192"))            # 8192 para darle más contexto
 DATA_DIR = os.getenv("DATA_DIR", "./data")
 HISTORY_DIR = os.path.join(DATA_DIR, "history")
 
