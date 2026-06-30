@@ -76,8 +76,10 @@ def render():
     st.sidebar.markdown(f"<p style='font-size:0.9rem; font-weight:600; color:#94a3b8; margin-bottom:12px;'>Historial de Chats</p>", unsafe_allow_html=True)
 
     if st.sidebar.button("📝 Nueva Conversación", use_container_width=True):
-        st.session_state.current_session_id = f"session_{int(time.time())}"
+        new_sess = f"session_{int(time.time())}"
+        st.session_state.current_session_id = new_sess
         st.session_state.messages = []
+        st.session_state.session_select_box = new_sess
         st.rerun()
 
     sessions = get_chat_sessions(usuario_id)
