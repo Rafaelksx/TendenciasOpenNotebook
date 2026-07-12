@@ -3,13 +3,115 @@ import requests
 from src.db import get_vector_collection
 from src.parser import ingest_document
 
+# --- CSS ---
+UPLOAD_GLASS_CSS = '''
+<style>
+/* Titulos y textos descriptivos */
+.upload-title {
+    color: #0f172a !important;
+    font-weight: 800;
+    font-size: 1.5rem;
+    margin-bottom: 5px;
+    font-family: 'Inter', sans-serif;
+}
+.upload-subtitle {
+    color: #475569 !important;
+    font-weight: 500;
+    font-size: 0.95rem;
+    margin-bottom: 25px;
+}
+
+/* Glassmorfismo para la zona de Arrastrar y soltar archivos */
+[data-testid="stFileUploadDropzone"] {
+    background: rgba(255, 255, 255, 0.25) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 2px dashed rgba(0, 71, 255, 0.3) !important;
+    border-radius: 20px !important;
+    padding: 2.5rem !important;
+    transition: all 0.3s ease !important;
+}
+
+[data-testid="stFileUploadDropzone"]:hover {
+    background: rgba(255, 255, 255, 0.4) !important;
+    border-color: #ec4899 !important; /* Cambio a rosa al pasar el mouse */
+    box-shadow: 0 8px 24px rgba(236, 72, 153, 0.1) !important;
+}
+
+[data-testid="stFileUploadDropzone"] * {
+    color: #0f172a !important; /* Forzar iconos y texto a color oscuro */
+}
+
+/* Estilo de los archivos subidos y la barra de carga */
+[data-testid="stUploadedFile"] {
+    background: rgba(255, 255, 255, 0.6) !important;
+    backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(236, 72, 153, 0.2) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.02) !important;
+}
+
+/* Texto indicador (Label) encima de la barra de progreso */
+[data-testid="stProgress"] label {
+    color: #0f172a !important;
+    font-weight: 700 !important;
+    font-size: 0.9rem !important;
+    background: transparent !important; 
+    padding-bottom: 6px !important;
+}
+
+/* Fondo de la barra de progreso (Track) */
+[data-testid="stProgress"] > div:last-child > div {
+    background: rgba(226, 232, 240, 0.8) !important; 
+    border: 1px solid rgba(0, 0, 0, 0.05) !important;
+    border-radius: 10px !important;
+    height: 12px !important; 
+}
+
+/* Relleno de la barra de progreso (Fill) */
+[data-testid="stProgress"] [role="progressbar"] {
+    background: linear-gradient(90deg, #8b5cf6 0%, #ec4899 100%) !important; 
+    border-radius: 10px !important;
+    height: 12px !important;
+    box-shadow: 0 0 8px rgba(236, 72, 153, 0.4) !important; 
+}
+
+/*Formulario de busqueda web */
+div[data-testid="stForm"] {
+    max-width: 100% !important;
+    margin: 10px 0 !important;
+    padding: 2rem !important;
+    background: rgba(15, 23, 42, 0.04) !important; 
+    backdrop-filter: blur(12px) !important;
+    border-radius: 20px !important;
+    border: 1px solid rgba(15, 23, 42, 0.08) !important; 
+    box-shadow: inset 0 2px 10px rgba(0,0,0,0.02) !important; /* Efecto hundido */
+}
+
+div[data-testid="stForm"] input {
+    background: rgba(255, 255, 255, 0.9) !important; 
+    border: 1px solid rgba(0, 71, 255, 0.3) !important;
+    color: #0f172a !important;
+    font-weight: 600 !important;
+}
+
+div[data-testid="stForm"] input:focus {
+    background: #ffffff !important;
+    border-color: #8b5cf6 !important; 
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2) !important;
+}
+</style>
+'''
+
 def render():
+    st.markdown(UPLOAD_GLASS_CSS, unsafe_allow_html=True)
+    
     usuario_id = st.session_state['usuario']['id']
     collection_name = f"coll_{usuario_id}_{st.session_state.current_session_id}"
     collection = get_vector_collection(collection_name)
 
-    st.markdown("### Ingesta de Literatura Científica y Material de Estudio")
-    st.write("Sube tus libros, artículos o apuntes para procesar, fragmentar y almacenar de forma segura y local.")
+    st.markdown("<h3 class='upload-title'>Ingesta de Material de Estudio</h3>", unsafe_allow_html=True)
+    st.markdown("<p class='upload-subtitle'>Sube tus libros, artículos o apuntes para procesar, fragmentar y almacenar de forma segura y local.</p>", unsafe_allow_html=True)
     
     uploaded_files = st.file_uploader(
         "Elige archivos PDF, Word o TXT para añadir a la base de conocimiento:",
@@ -27,9 +129,10 @@ def render():
                     st.session_state[file_key] = True
                     st.rerun()
 
-    st.markdown("---")
-    st.markdown("### 🌐 Investigar e Ingestar desde la Web")
-    st.write("Escribe un término de búsqueda para buscar en la web ( DuckDuckGo / Wikipedia ) o pega una dirección (URL) directa para extraer su información.")
+    st.markdown("<br><hr style='border-color: rgba(0,0,0,0.05);'><br>", unsafe_allow_html=True)
+    
+    st.markdown("<h3 class='upload-title'>🌐 Investigar e Ingestar desde la Web</h3>", unsafe_allow_html=True)
+    st.markdown("<p class='upload-subtitle'>Escribe un término de búsqueda para buscar en la web ( DuckDuckGo / Wikipedia ) o pega una dirección (URL) directa para extraer su información.</p>", unsafe_allow_html=True)
     
     with st.form("web_research_form"):
         search_query = st.text_input("Palabra clave o enlace URL (ej: 'Matryoshka embeddings' o 'https://concepto.de/ciclo-del-agua/'):")
