@@ -11,6 +11,106 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# --- CSS ---
+PASTEL_GLASS_CSS = '''
+<style>
+/* Fondo Mesh Gradient  */
+.stApp {
+    background: radial-gradient(circle at 10% 90%, #ffdfd3 0%, transparent 50%),
+                radial-gradient(circle at 90% 10%, #a1c4fd 0%, transparent 50%),
+                linear-gradient(135deg, #fdfbfb 0%, #f3f4f6 100%);
+    background-attachment: fixed;
+}
+
+/* Forzar todo el texto a colores oscuros (Incluye listas y negritas) */
+.stMarkdown p, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown span, label, .stTab, .stMarkdown li, .stMarkdown ul, .stMarkdown ol, .stMarkdown strong, .stMarkdown em, .stMarkdown a {
+    color: #0f172a !important;
+}
+
+/* Contenedor del Login */
+div[data-testid="stForm"] {
+    background: rgba(255, 255, 255, 0.4) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.8) !important;
+    border-radius: 24px !important;
+    padding: 3rem !important;
+    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.1) !important;
+    max-width: 420px !important;
+    margin: 40px auto !important;
+}
+
+/* Inputs de texto estilo*/
+div[data-testid="stTextInput"] > div > div > input {
+    background: rgba(255, 255, 255, 0.5) !important;
+    border: 1px solid rgba(255, 255, 255, 0.8) !important;
+    color: #0f172a !important;
+    border-radius: 12px !important;
+    padding: 12px !important;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02) !important;
+    backdrop-filter: blur(5px) !important;
+}
+
+div[data-testid="stTextInput"] > div > div > input:focus {
+    background: rgba(255, 255, 255, 0.9) !important;
+    border-color: #a1c4fd !important;
+    box-shadow: 0 0 0 3px rgba(161, 196, 253, 0.4) !important;
+}
+
+/* Etiquetas de los inputs */
+.stTextInput label {
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px !important;
+}
+
+/* BOTONES GLOBALES */
+.stButton > button, div[data-testid="stFormSubmitButton"] > button {
+    background: rgba(255, 255, 255, 0.35) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.9) !important;
+    border-radius: 16px !important;
+    color: #1e293b !important;
+    font-weight: 700 !important;
+    padding: 10px 24px !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05) !important;
+    width: 100% !important;
+}
+
+.stButton > button:hover, div[data-testid="stFormSubmitButton"] > button:hover {
+    background: rgba(255, 255, 255, 0.7) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1) !important;
+    border-color: #ffffff !important;
+}
+
+/* Titulos especificos del login */
+h1.glass-title {
+    text-align: center;
+    color: #0f172a !important;
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    font-size: 2.8rem;
+    margin-bottom: 5px;
+    letter-spacing: -1px;
+}
+
+h3.glass-subtitle {
+    text-align: center;
+    color: #475569 !important;
+    font-weight: 500;
+    font-size: 1.1rem;
+    margin-bottom: 30px;
+}
+</style>
+'''
+st.markdown(PASTEL_GLASS_CSS, unsafe_allow_html=True)
+
+
 # Si la variable de entorno API_HOST existe, la usa. Si no, usa localhost.
 api_host = os.getenv("API_HOST", "localhost")
 url = f"http://{api_host}:8000/login"
@@ -41,7 +141,6 @@ if "current_session_id" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# --- ESTAS SON LAS DOS LÍNEAS NUEVAS ---
 if "llm_model" not in st.session_state:
     st.session_state.llm_model = LLM_MODEL
 
@@ -59,7 +158,8 @@ if 'modo_registro' not in st.session_state:
     st.session_state.modo_registro = False
 
 if st.session_state['usuario'] is None:
-    st.markdown("<h1 style='text-align: center;'>📖 Open Notebook</h1>", unsafe_allow_html=True)
+    # Titulos con clases CSS actualizadas
+    st.markdown("<h1 class='glass-title'>Open Notebook</h1>", unsafe_allow_html=True)
     
     if not st.session_state.modo_registro:
         if st.session_state.get('registro_exitoso'):
@@ -68,54 +168,74 @@ if st.session_state['usuario'] is None:
             del st.session_state['registro_exitoso']
             
         # --- FORMULARIO DE LOGIN ---
-        st.markdown("<h3 style='text-align: center; color: #94a3b8;'>Inicia sesión</h3>", unsafe_allow_html=True)
-        with st.form("login_form"):
-            correo = st.text_input("Correo Electrónico")
-            clave = st.text_input("Contraseña", type="password")
-            
-            col1, col2 = st.columns([1, 1])
-            entrar = col1.form_submit_button("Entrar", use_container_width=True)
-            ir_registro = col2.form_submit_button("¿No tienes cuenta? Regístrate")
-            
-            if entrar:
-                respuesta = requests.post(url, json={"correo": correo, "contraseña": clave})
-                if respuesta.status_code == 200:
-                    usuario_data = respuesta.json()['usuario']
-                    st.session_state['usuario'] = usuario_data
-                    st.query_params['uid'] = str(usuario_data['id'])
+        st.markdown("<h3 class='glass-subtitle'>Inicia sesión en tu entorno RAG</h3>", unsafe_allow_html=True)
+        col_space1, col_form, col_space2 = st.columns([1, 1.5, 1])
+        
+        with col_form:
+            with st.form("login_form"):
+                correo = st.text_input("Correo Electrónico", placeholder="tu@email.com")
+                clave = st.text_input("Contraseña", type="password", placeholder="••••••••")
+                
+                entrar = st.form_submit_button("Entrar", use_container_width=True)
+                ir_registro = st.form_submit_button("Crear una cuenta nueva", use_container_width=True)
+                
+                if entrar:
+                    try:
+                        resp = requests.post(
+                            f"http://{api_host}:8000/login",
+                            json={"correo": correo, "contraseña": clave},
+                            timeout=5
+                        )
+                        if resp.status_code == 200:
+                            usuario_data = resp.json()["usuario"]
+                            st.session_state['usuario'] = usuario_data
+                            st.query_params['uid'] = str(usuario_data['id'])
+                            st.rerun()
+                        else:
+                            st.error(resp.json().get("detail", "Credenciales incorrectas."))
+                    except Exception as e:
+                        st.error(f"No se pudo conectar con el backend: {e}")
+                
+                if ir_registro:
+                    st.session_state.modo_registro = True
                     st.rerun()
-                else:
-                    st.error("Credenciales incorrectas.")
-            
-            if ir_registro:
-                st.session_state.modo_registro = True
-                st.rerun()
                 
     else:
         # --- FORMULARIO DE REGISTRO ---
-        st.markdown("<h3 style='text-align: center; color: #94a3b8;'>Crear cuenta nueva</h3>", unsafe_allow_html=True)
-        with st.form("register_form"):
-            nombre = st.text_input("Nombre completo")
-            correo = st.text_input("Correo electrónico")
-            clave = st.text_input("Contraseña", type="password")
-            
-            col1, col2 = st.columns([1, 1])
-            registrar = col1.form_submit_button("Registrarme", use_container_width=True)
-            volver = col2.form_submit_button("Volver al Login")
-            
-            if registrar:
-                url_registro = f"http://{api_host}:8000/registro"
-                respuesta = requests.post(url_registro, json={"nombre": nombre, "correo": correo, "contraseña": clave})
-                if respuesta.status_code == 200:
-                    st.session_state['registro_exitoso'] = True
+        st.markdown("<h3 class='glass-subtitle'>Regístrate para comenzar a indexar</h3>", unsafe_allow_html=True)
+        col_space1, col_form, col_space2 = st.columns([1, 1.5, 1])
+        
+        with col_form:
+            with st.form("register_form"):
+                nombre = st.text_input("Nombre completo", placeholder="Ej: Fernando Centeno")
+                correo = st.text_input("Correo electrónico", placeholder="tu@email.com")
+                clave = st.text_input("Contraseña", type="password", placeholder="••••••••")
+                
+                registrar = st.form_submit_button("Registrarme", use_container_width=True)
+                volver = st.form_submit_button("Volver al Login", use_container_width=True)
+                
+                if registrar:
+                    if not nombre or not correo or not clave:
+                        st.error("Por favor, completa todos los campos.")
+                    else:
+                        try:
+                            resp = requests.post(
+                                f"http://{api_host}:8000/registro",
+                                json={"nombre": nombre, "correo": correo, "contraseña": clave},
+                                timeout=5
+                            )
+                            if resp.status_code == 200:
+                                st.session_state['registro_exitoso'] = True
+                                st.session_state.modo_registro = False
+                                st.rerun()
+                            else:
+                                st.error(resp.json().get("detail", "Error al registrar."))
+                        except Exception as e:
+                            st.error(f"No se pudo conectar con el backend: {e}")
+                
+                if volver:
                     st.session_state.modo_registro = False
                     st.rerun()
-                else:
-                    st.error("Error al registrar: el correo podría estar en uso.")
-            
-            if volver:
-                st.session_state.modo_registro = False
-                st.rerun()
     st.stop()
 if st.session_state['usuario'] is not None:
     # ==========================================================
@@ -132,10 +252,8 @@ if st.session_state['usuario'] is not None:
 
     from views import sidebar, chat, explorer, upload
 
-    # El sidebar ahora incluye el botón de logout internamente
     sidebar.render()
 
-    # Si el usuario se desloguea durante el renderizado del sidebar, evitamos renderizar el resto
     if st.session_state['usuario'] is not None:
         tab_chat, tab_explorer, tab_upload = st.tabs(["Chat de Consulta", "Explorador de Documentos", "Cargar Archivos"])
 

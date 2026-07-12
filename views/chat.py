@@ -6,7 +6,66 @@ from src.db import get_vector_collection
 from src.models import test_ollama_connection, get_ollama_embedding
 from src.history import save_chat_session
 
+# --- CSS ESPECÍFICO PARA EL CHAT (Glassmorfismo y Legibilidad) ---
+CHAT_GLASS_CSS = '''
+<style>
+/* Estilo para las burbujas de los mensajes del chat */
+div[data-testid="stChatMessage"] {
+    background: rgba(255, 255, 255, 0.4) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.6) !important;
+    border-radius: 16px !important;
+    padding: 1.5rem !important;
+    margin-bottom: 1rem !important;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.02) !important;
+    color: #0f172a !important; /* Forzar texto oscuro */
+}
+
+/* Contenedor de las fuentes/chunks extraídos */
+.chunk-box {
+    background: rgba(255, 255, 255, 0.6) !important;
+    backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.9) !important;
+    border-radius: 12px;
+    padding: 15px;
+    margin-top: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.04) !important;
+}
+
+.chunk-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-weight: 800;
+    color: #0047ff !important;
+    font-size: 0.9rem;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    padding-bottom: 5px;
+}
+
+/* Forzar color oscuro en el campo de texto inferior */
+div[data-testid="stChatInput"] {
+    background: transparent !important;
+}
+
+div[data-testid="stChatInput"] textarea {
+    color: #0f172a !important;
+    background: rgba(255, 255, 255, 0.7) !important;
+    border: 1px solid rgba(255,255,255,0.8) !important;
+    border-radius: 12px !important;
+    font-weight: 500 !important;
+}
+
+div[data-testid="stChatInput"] textarea::placeholder {
+    color: #64748b !important;
+}
+</style>
+'''
+
 def render():
+    st.markdown(CHAT_GLASS_CSS, unsafe_allow_html=True)
+    
     usuario_id = st.session_state['usuario']['id']
     collection_name = f"coll_{usuario_id}_{st.session_state.current_session_id}"
     collection = get_vector_collection(collection_name)
@@ -19,17 +78,17 @@ def render():
         st.session_state.active_query = None
 
     # Plantillas rápidas
-    st.markdown("### Tareas Rápidas Inteligentes")
+    st.markdown("<h3 style='color: #0f172a;'>Tareas Rápidas Inteligentes</h3>", unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown(f"<p style='font-weight:600; color:#818cf8; margin-bottom:12px; font-size: 1rem;'>{SVG_STUDENT}Para Estudiantes</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='font-weight:700; color:#2563eb; margin-bottom:12px; font-size: 1.05rem;'>{SVG_STUDENT} Para Estudiantes</p>", unsafe_allow_html=True)
         if st.button("Sintetizar material principal", use_container_width=True): st.session_state.active_query = "Realiza un resumen estructurado, analítico y conciso de los conceptos principales expuestos en los documentos suministrados."
         if st.button("Generar un simulacro de examen", use_container_width=True): st.session_state.active_query = "Crea un cuestionario/simulacro de examen con 5 preguntas complejas sobre el material indexado, con sus respuestas justificadas."
         if st.button("Extraer metodologías y fórmulas clave", use_container_width=True): st.session_state.active_query = "Extrae de forma ordenada todas las metodologías, metodologías matemáticas, fórmulas o algoritmos clave explicados en el texto."
             
     with col2:
-        st.markdown(f"<p style='font-weight:600; color:#c084fc; margin-bottom:12px; font-size: 1rem;'>{SVG_TEACHER}Para Docentes e Investigadores</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='font-weight:700; color:#9333ea; margin-bottom:12px; font-size: 1.05rem;'>{SVG_TEACHER} Para Docentes e Investigadores</p>", unsafe_allow_html=True)
         if st.button("Revisar estructura de borrador de tesis", use_container_width=True): st.session_state.active_query = "Evalúa críticamente la coherencia metodológica, la estructura académica y la consistencia teórica en base a la bibliografía cargada."
         if st.button("Diseñar syllabus y asignaciones académicas", use_container_width=True): st.session_state.active_query = "Diseña una propuesta pedagógica (syllabus) de 4 unidades didácticas y 2 actividades de evaluación basadas directamente en este material."
         if st.button("Evaluación ciega de artículos científicos", use_container_width=True): st.session_state.active_query = "Realiza una revisión ciega del material: identifica fortalezas, debilidades metodológicas y sugerencias de mejora del rigor científico."
@@ -49,7 +108,7 @@ def render():
 <span>{chunk['source']} (Pág. {chunk['page']})</span>
 <span>Similitud: {chunk['score']:.4f}</span>
 </div>
-<p style='margin:0; font-size:0.85rem; color:#cbd5e1;'>{chunk['text']}</p>
+<p style='margin:0; font-size:0.9rem; color:#334155; line-height: 1.5;'>{chunk['text']}</p>
 </div>
 """, unsafe_allow_html=True)
 
