@@ -207,7 +207,8 @@ def render():
             delete_chat_session(usuario_id, st.session_state.current_session_id)
             new_sess = f"session_{int(time.time())}"
             st.session_state.current_session_id = new_sess
-            st.session_state.session_select_box = new_sess
+            if "session_select_box" in st.session_state:
+                del st.session_state["session_select_box"]
             st.session_state.messages = []
             st.rerun()
 
